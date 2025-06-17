@@ -1,5 +1,3 @@
-setwd("/Users/hortenciahernandez/Documents/Random Tests and Projects/Mini Project - 17")
-
 library(dplyr) 
 library(igraph)
 library(ggraph)
@@ -12,7 +10,7 @@ library(visNetwork)
 library(htmlwidgets)
 
 
-dat_disco <- read_xlsx("SVT_Discography.xlsx")
+dat_disco <- read_xlsx("data/SVT_Discography.xlsx")
 vocal_Team <- c("Jeonghan", "Seungkwan", "DK", "Joshua", "Woozi")
 performance_Team <- c("Jun", "Hoshi", "The8", "Dino")
 hiphop_Team <- c("S.Coups", "Wonwoo", "Mingyu", "Vernon")
@@ -164,19 +162,6 @@ comp_songs <- ggplot(member_long, aes(x = reorder(Artist, Count, sum), y = Count
 
 ggsave("images/Group_Non_Group.png", plot = comp_songs, width = 10, height = 8, dpi = 300)
 
-total_counts <- disco_pre2 %>%
-  select(Song, Artist, Feat) %>%
-  pivot_longer(cols = c(Artist, Feat), names_to = "Role", values_to = "Name") %>%
-  #separate_rows(Name, sep = ",\\s*") %>%       # split comma-separated names
-  distinct(Song, Name) %>%                     # avoid double-counting artist in same song
-  count(Name, name = "Total_Songs") %>%
-  arrange(desc(Total_Songs))
-
-
-
-
-
-
 edge_list <- disco_pre2 %>%
   select(2, 3) %>%
   filter(!is.na(Artist) & !is.na(Feat))
@@ -297,6 +282,6 @@ graph <- visNetwork(nodes, edges) %>%
 
 
 
-saveWidget(graph, file = "seventeen_network.html", selfcontained = TRUE)
+saveWidget(graph, file = "docs/index.html", selfcontained = TRUE)
 
 
