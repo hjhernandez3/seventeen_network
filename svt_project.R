@@ -97,15 +97,22 @@ disco_pre1 <- disco_pre %>%
 
 #deleting self edges
 disco_pre2 <- disco_pre1 %>%
-  filter(Artist != Feat) %>%
-  distinct(Song, Artist, Feat, .keep_all = TRUE) 
+  filter(Artist != Feat)
+
+# NEED TO COUNT ALL SONGS!!!! doesnt matter if they dont have a Feat or not
+unique_songs_per_artist <- disco_pre2 %>%
+  select(Song, Artist, Feat) %>%
+  pivot_longer(cols = c(Artist, Feat), names_to = "role", values_to = "person") %>%
+  distinct(person, Song) %>%
+  count(person, name = "num_unique_songs") %>%
+  arrange(desc(num_unique_songs))
 
 member_songs <- disco_pre2 %>%
   select(Song, Artist, Group) %>%
   filter(Artist %in% seventeen) %>%
   distinct(Song, Artist, Group)  # avoid overcounting
 
-# Step 2: Count group vs. non-group songs
+# Count group vs. non-group songs
 member_counts <- member_songs %>%
   mutate(Participation = ifelse(Group == "SEVENTEEN", "Group", "Non-Group")) %>%
   count(Artist, Participation) %>%
@@ -145,7 +152,7 @@ comp_songs <- ggplot(member_long, aes(x = reorder(Artist, Count, sum), y = Count
   labs(
     x = NULL,
     y = "Number of Songs",
-    title = "Songs within SEVENTEEN vs Solo/Subunit/Other",
+    title = "Songs within SEVENTEEN vs Solo/Other",
     fill = "Song Type",
     caption = "Graph by Hortencia Josefina Hernandez ·\nData: SEVENTEEN Discography · Updated: June 16, 2025"
   ) +
@@ -166,9 +173,9 @@ edge_list <- disco_pre2 %>%
   select(2, 3) %>%
   filter(!is.na(Artist) & !is.na(Feat))
 
-disco_graph <- graph_from_data_frame(edge_list, directed = TRUE)
+disco_graph <- graph_from_data_frame(edge_list, directed = FALSE)
 
-V(disco_graph)$size <- member_counts$Total_songs[match(V(disco_graph)$name, member_counts$Artist)] / 10
+V(disco_graph)$size <- member_counts$Total_songs[match(V(disco_graph)$name, member_counts$Artist)] 
 
 p1 <- ggraph(disco_graph, layout = "fr") +
   geom_edge_link(aes(alpha = ..index..), color = "gray70") +
@@ -306,4 +313,38 @@ graph <- visNetwork(nodes, edges) %>%
 
 saveWidget(graph, file = "docs/index.html", selfcontained = TRUE)
 
+# SOME NETWORK PROPERTIES
 
+
+g <- graph_from_data_frame(d = edges, vertices = nodes, directed = FALSE)
+
+btw <- betweenness(g)
+deg <- degree(g)
+degMax <- which.max(deg)
+# View top members
+sort(btw, decreasing = TRUE)
+
+
+
+# Counting how many people are connected to each seventeen member
+edges_tagged <- edges %>%
+  left_join(nodes %>% select(id, SEVENTEEN_Member), by = c("from" = "id")) %>%
+  rename(from_group = SEVENTEEN_Member) %>%
+  left_join(nodes %>% select(id, SEVENTEEN_Member), by = c("to" = "id")) %>%
+  rename(to_group = SEVENTEEN_Member)
+
+svt_to_non_edges <- edges_tagged %>%
+  filter(
+    (from_group == "SEVENTEEN" & to_group != "SEVENTEEN") |
+      (from_group != "SEVENTEEN" & to_group == "SEVENTEEN")
+  )
+
+svt_connections <- svt_to_non_edges %>%
+  mutate(
+    svt_member = ifelse(from_group == "SEVENTEEN", from, to),
+    non_svt_partner = ifelse(from_group == "SEVENTEEN", to, from)
+  ) 
+
+svt_external_counts <- svt_connections %>%
+  count(svt_member, name = "non_svt_connections") %>%
+  arrange(desc(non_svt_connections))
