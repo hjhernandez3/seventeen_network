@@ -100,31 +100,42 @@ disco_pre2 <- disco_pre1 %>%
   filter(Artist != Feat)
 
 # NEED TO COUNT ALL SONGS!!!! doesnt matter if they dont have a Feat or not
-unique_songs_per_artist <- disco_pre2 %>%
-  select(Song, Artist, Feat) %>%
-  pivot_longer(cols = c(Artist, Feat), names_to = "role", values_to = "person") %>%
-  distinct(person, Song) %>%
-  count(person, name = "num_unique_songs") %>%
-  arrange(desc(num_unique_songs))
+unique_songs_per_artist <- disco_pre1 %>%
+  select(Song, Group, Artist, Feat) %>%
+  pivot_longer(cols = c(Artist, Feat), names_to = "role", values_to = "Artist") %>%
+  distinct(Song, Artist, Group)
 
-member_songs <- disco_pre2 %>%
-  select(Song, Artist, Group) %>%
+
+count_totals <- unique_songs_per_artist %>%
   filter(Artist %in% seventeen) %>%
-  distinct(Song, Artist, Group)  # avoid overcounting
+  group_by(Artist, Group) %>%
+  summarise(total_songs = n_distinct(Song))
 
-# Count group vs. non-group songs
-member_counts <- member_songs %>%
-  mutate(Participation = ifelse(Group == "SEVENTEEN", "Group", "Non-Group")) %>%
-  count(Artist, Participation) %>%
-  tidyr::pivot_wider(names_from = Participation, values_from = n, values_fill = 0) %>%
-  arrange(desc(Group))
 
-member_counts <- member_counts %>%
-  rename(`Non-Group` = `NA`) %>%
-  mutate(Total_songs = Group + `Non-Group`)
 
-member_long <- member_counts %>%
-  tidyr::pivot_longer(cols = c("Group", "Non-Group"), names_to = "Type", values_to = "Count")
+count_totals_wide <- count_totals %>%
+  pivot_wider(
+    names_from = Group,
+    values_from = total_songs,
+    names_prefix = "",
+    values_fill = 0
+  ) %>%
+  rename(
+    svt_songs = SEVENTEEN,
+    na_songs = `NA`
+  )
+
+member_long <- count_totals_wide %>%
+  pivot_longer(cols = c(svt_songs, na_songs),
+               names_to = "Type",
+               values_to = "Count") %>%
+  mutate(
+    Type = recode(Type,
+                  svt_songs = "Group",
+                  na_songs = "Non-Group"),
+    Total_songs = ave(Count, Artist, FUN = sum)
+  )
+
 
 
 comp_songs <- ggplot(member_long, aes(x = reorder(Artist, Count, sum), y = Count, fill = Type)) +
@@ -154,7 +165,7 @@ comp_songs <- ggplot(member_long, aes(x = reorder(Artist, Count, sum), y = Count
     y = "Number of Songs",
     title = "Songs within SEVENTEEN vs Solo/Other",
     fill = "Song Type",
-    caption = "Graph by Hortencia Josefina Hernandez ·\nData: SEVENTEEN Discography · Updated: June 16, 2025"
+    caption = "Graph by Hortencia Josefina Hernandez ·\nData: SEVENTEEN Discography · Updated: June 17, 2025"
   ) +
   theme_minimal(base_size = 12) +
   theme(
@@ -175,7 +186,7 @@ edge_list <- disco_pre2 %>%
 
 disco_graph <- graph_from_data_frame(edge_list, directed = FALSE)
 
-V(disco_graph)$size <- member_counts$Total_songs[match(V(disco_graph)$name, member_counts$Artist)] 
+V(disco_graph)$size <- member_long$Total_songs[match(V(disco_graph)$name, member_long$Artist)] 
 
 p1 <- ggraph(disco_graph, layout = "fr") +
   geom_edge_link(aes(alpha = ..index..), color = "gray70") +
@@ -321,9 +332,10 @@ g <- graph_from_data_frame(d = edges, vertices = nodes, directed = FALSE)
 btw <- betweenness(g)
 deg <- degree(g)
 degMax <- which.max(deg)
+cl <- closeness(g)
 # View top members
 sort(btw, decreasing = TRUE)
-
+sort(cl, decreasing = TRUE)
 
 
 # Counting how many people are connected to each seventeen member
