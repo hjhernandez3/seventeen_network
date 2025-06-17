@@ -260,8 +260,29 @@ graph <- visNetwork(nodes, edges) %>%
   visGroups(groupname = "Performance Team", color = "orange") %>%
   visGroups(groupname = "Hip-Hop Team", color = "lightblue") %>%
   visGroups(groupname = "Other", color = "lightgray") %>%
-  visNodes(font = list(size = 50, valign = "top")) %>%
-  visOptions(selectedBy = "group") %>%
+  visNodes(
+    font = list(size = 50, valign = "top"),
+    color = list(
+      highlight = list(background = "inherit", border = "inherit"),
+      hover = list(background = "inherit", border = "inherit")
+    )
+  ) %>%
+  visOptions(
+    selectedBy = list(
+      variable = "group",
+      values = unique(nodes$group[nodes$group != "Other"])
+    ),
+    highlightNearest = list(
+      enabled = TRUE,
+      degree = 0,
+      hover = FALSE,
+      algorithm = "all"  # ensures both dropdowns trigger highlights
+    ),
+    nodesIdSelection = list(
+      enabled = TRUE,
+      values = nodes$id[nodes$id %in% seventeen]
+    )
+  ) %>%
   visEdges(
     smooth = TRUE,
     scaling = list(min = 1, max = 5),
@@ -271,13 +292,14 @@ graph <- visNetwork(nodes, edges) %>%
   visPhysics(
     solver = "repulsion",
     repulsion = list(
-      nodeDistance = 250,  # increase to push nodes farther apart
+      nodeDistance = 400,  # increase to push nodes farther apart
       springLength = 200,
       springConstant = 0.01,
       damping = 0.1
     ),
     stabilization = list(enabled = FALSE, iterations = 500)
   )%>%
+  visInteraction(navigationButtons = TRUE) %>%
   visLegend()
 
 
